@@ -1,0 +1,5 @@
+# Se installate nuovi pacchetti aggiungeteli a questo file
+# Così tutti sanno esattamente cosa serve per far andare il codice
+
+numpy
+qiskit
