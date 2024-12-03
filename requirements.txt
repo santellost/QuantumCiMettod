@@ -1,5 +1,8 @@
-# Se installate nuovi pacchetti aggiungeteli a questo file
-# Così tutti sanno esattamente cosa serve per far andare il codice
+# If you need to install another package, write it here
 
 numpy
+pandas
+matplotlib
+seaborn
+
 qiskit
