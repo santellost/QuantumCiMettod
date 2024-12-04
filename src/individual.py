@@ -12,7 +12,7 @@ from qiskit import QuantumCircuit
 
 
 try:
-    del creator.Individual
+    del creator.FitnessMin
 except Exception:
     pass
 
