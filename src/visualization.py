@@ -87,6 +87,6 @@ def compare_histograms(qc: QuantumCircuit, desired: Statevector, shots: int = 10
     de_data = pd.DataFrame({'base': base_labels, 'from': ['Desired'] * 2**qc.num_qubits, 'frequencies': de_counts})
 
     data = pd.concat([ev_data, de_data])
-    g = sns.catplot(data, x='base', y='frequencies', row='from', kind='bar', height=0.7*qc.num_qubits, aspect=0.7*qc.num_qubits)
+    g = sns.catplot(data, x='base', y='frequencies', row='from', kind='bar', height=0.8*qc.num_qubits, aspect=0.7*qc.num_qubits)
     g.set_axis_labels("Base", "Frequencies")
     g.set_titles('{row_name}')
