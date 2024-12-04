@@ -8,4 +8,7 @@ GA4QC: https://arxiv.org/pdf/2302.01303
 
 Evolving quantum circuits using genetic algorithm: https://ieeexplore.ieee.org/abstract/document/1029883
 
+Rubinstein: https://ieeexplore.ieee.org/document/934383
+
+
 Corso Qiskit: https://learning.quantum.ibm.com/
