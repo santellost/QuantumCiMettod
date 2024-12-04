@@ -12,7 +12,7 @@ import random
 import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
-from deap import base, creator, tools, algorithms
+from deap import base, tools, algorithms
 import visualization as vis
 
 
@@ -62,52 +62,6 @@ def l_distance(circuit_builder: callable, desired: Statevector, qc: Individual,
                 desired = np.exp(-1j * angle) * desired
                 break
     return np.linalg.norm(psi - desired, ord=order), 
-
-
-def cosine_similarity(circuit_builder: callable, desired: Statevector, qc: Individual,
-                      ignorePhase: bool = True, rtol: float = 1e-5, atol: float = 1e-8) -> tuple[float]:
-    '''
-    Evaluate the quantum circuit by computing the cosine similarity between the 
-    desired output vector and the computed vector
-
-    Parameters
-    ----------
-    circuit_builder : callable
-        Function used to build the qiskit circuit
-    desired : Statevector
-        Desired output vector.
-    qc : Individual
-        Quantum circuit built by the genetic algorithm.
-    ignorePhase : bool, optional
-        If true ignore global phase difference. The default is True.
-    rtol : TYPE, optional
-        Relative tollerance to use during computation. The default is 1e-5.
-    atol : TYPE, optional
-        Absolute tollerance to use during computation. The default is 1e-8.
-
-    Returns
-    -------
-    tuple[float]
-        Cosine similarity.
-
-    '''
-    psi = Statevector.from_label('0' * qc.num_qubits)
-    psi = psi.evolve(circuit_builder(qc))
-    desired = desired.copy()    
-    if ignorePhase:
-        # Get phase of first non-zero entry of psi and out
-        # and multiply all entries by the conjugate
-        for elt in psi:
-            if abs(elt) > atol:
-                angle = np.angle(elt)
-                psi = np.exp(-1j * angle) * psi
-                break
-        for elt in desired:
-            if abs(elt) > atol:
-                angle = np.angle(elt)
-                desired = np.exp(-1j * angle) * desired
-                break
-    return np.abs((psi - desired).inner(psi- desired)/(np.linalg.norm(psi) * np.linalg.norm(desired))), 
 
 
 def insert_mutation(qc: Individual) -> tuple[Individual]:
@@ -254,8 +208,17 @@ def swap_qubits(qc: Individual) -> tuple[Individual]:
     return qc, 
 
 
-def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.5,
-           flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1) -> tuple[Individual]:
+def debloat_mutation(qc: Individual) -> tuple[Individual]:
+    i = random.randrange(len(qc))
+    j = random.randrange(i, len(qc))
+    for _ in range(j-i):
+        del qc[i]
+    return qc,
+
+
+def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
+           flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1,
+           dblpb: float = 0.2) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -284,17 +247,19 @@ def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.5,
         swap_columns(qc)
     if random.random() < qbtpb:
         swap_qubits(qc)
+    if random.random() < dblpb:
+        debloat_mutation(qc)
     return qc,
 
 
 def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=5)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=20)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=4)
+    toolbox.register("select", tools.selTournament, tournsize=3)
     toolbox.register("circuit_builder", Individual.build_circuit)
     toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
     
@@ -342,17 +307,19 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
 
 if __name__ == '__main__':
-    u = Statevector.from_label('000' )
-    psi = Statevector(np.sqrt([1/3, 1/3, 0, 0, 1/3, 0, 0, 0]))
+    num_qubits = 3
+    initial = Statevector.from_label('0' * num_qubits)
+    desired = Statevector(np.sqrt([1/3, 0, 0, 1/3, 1/6, 1/6, 0, 0]))
     
-    ngen = 30
-    best, genetic_logbook = genetic(psi, npop=100, ngen=ngen)
-    _, random_logbook = random_walk(psi, ngen)
+    ngen = 100
+    best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
+    _, random_logbook = random_walk(desired, ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
-    vis.compare_histograms(best, psi)
+    vis.compare_histograms(best, desired)
+    print('Evolved is equivalent to deisred:', desired.equiv(initial.evolve(best)))
     
     display(best.draw('mpl'))
-    display(u.evolve(best).draw('latex'))
+    display(initial.evolve(best).draw('latex'))
     
     
