@@ -56,7 +56,7 @@ def plot_logbook(logbook: tools.Logbook, **against: tools.Logbook):
     ax1.legend(lns, labs, loc='center right')
     
     
-def compare_histograms(qc: QuantumCircuit, desired: Statevector, shots: int = 5000):
+def compare_histograms(qc: QuantumCircuit, desired: Statevector):
     '''
     Plots both histograms obtained by the qunatum circuit and the desired statevector
 
@@ -78,12 +78,12 @@ def compare_histograms(qc: QuantumCircuit, desired: Statevector, shots: int = 50
     initial = Statevector.from_label(base_labels[0])
     evolved = initial.evolve(qc)
     
-    ev_counts = evolved.sample_counts(shots)
-    ev_counts = [ev_counts.get(base, 0) / shots for base in base_labels]
+    ev_counts = evolved.probabilities_dict()
+    ev_counts = [ev_counts.get(base, 0) for base in base_labels]
     ev_data = pd.DataFrame({'base': base_labels, 'from': ['Evolved'] * 2**qc.num_qubits, 'frequencies': ev_counts})
         
-    de_counts = desired.sample_counts(shots)
-    de_counts = [de_counts.get(base, 0) / shots for base in base_labels]
+    de_counts = desired.probabilities_dict()
+    de_counts = [de_counts.get(base, 0) for base in base_labels]
     de_data = pd.DataFrame({'base': base_labels, 'from': ['Desired'] * 2**qc.num_qubits, 'frequencies': de_counts})
 
     with sns.plotting_context('notebook', font_scale=1.2):
