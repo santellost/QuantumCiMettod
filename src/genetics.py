@@ -5,109 +5,18 @@ Created on Tue Nov 26 13:56:45 2024
 @author: stefa
 """
 
+import utils
+from individual import Individual
+
 import random
 import numpy as np
 from qiskit import QuantumCircuit
-from qiskit.circuit import library
-from qiskit.circuit import Gate
-from qiskit.circuit.singleton import SingletonGate
 from qiskit.quantum_info import Statevector
-from deap import base, creator, tools, algorithms
+from deap import base, tools, algorithms
 import visualization as vis
 
 
-NO_PARAMS = [g() for g in library.__dict__.values() if isinstance(g, type) and issubclass(g, SingletonGate)]
-# TODO find a method to use parameter gates
-
-
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
-creator.create("Individual", list, fitness=creator.FitnessMin, num_qubits=int)
-
-
-def init_ind(icls, generator, num_qubits, max_depth):
-    '''
-    Initialize individual
-    '''
-    ind = icls(generator(num_qubits, max_depth))
-    ind.num_qubits = num_qubits
-    ind.max_depth = max_depth
-    return ind
-
-
-def random_gate(max_qubits: int) -> Gate:
-    '''
-    Randomly extract an unparametrized gate
-
-    Parameters
-    ----------
-    max_quibts : int
-        Inclusive max number of qubits.
-
-    Returns
-    -------
-    Gate
-        Random gate.
-
-    '''
-    return random.choice(list(filter(lambda g: g.num_qubits <= max_qubits and g.name != 'id', NO_PARAMS)))
-
-
-def random_gates(num_qubits: int, max_depth: int) -> list[list[tuple[Gate, list[int]]]]:
-    '''
-    Creates a random circuit based on random gates
-
-    Parameters
-    ----------
-    num_qubits : int
-        Number of qubits.
-    max_depth : int
-        Max depth of the circuit.
-
-    Returns
-    -------
-    qc : list[list[tuple[Gate, list[int]]]]
-        The first index decides the layer of the circuit, the second the number of the gate.
-
-    '''
-    qc = []
-    for i in range(max_depth):
-        layer = []
-        qubits = list(range(num_qubits))
-        random.shuffle(qubits)
-        while len(qubits) > 0 and random.random() < 0.5:
-            gate = random_gate(len(qubits))
-            selected = qubits[:gate.num_qubits]
-            layer.append((gate, selected))
-            qubits = qubits[gate.num_qubits:]
-        qc.append(layer)
-    return qc
-
-
-def build_from_list(qc: creator.Individual) -> QuantumCircuit:
-    '''
-    Builds the quantum circuit as defined in the list
-
-    Parameters
-    ----------
-    qc : list
-        Quantum circuit evolved as list.
-    num_qubits : int
-        Number of qubits.
-
-    Returns
-    -------
-    _qc : QuantumCircuit
-        Qiskit quantum circuit.
-
-    '''
-    _qc = QuantumCircuit(qc.num_qubits)
-    for layer in qc:
-        for gate in layer:
-            _qc.append(gate[0], gate[1])
-    return _qc
-
-
-def l_distance(circuit_builder: callable, desired: Statevector, qc: creator.Individual, 
+def l_distance(circuit_builder: callable, desired: Statevector, qc: Individual, 
              order: int | type(np.inf) = 2, ignorePhase: bool = True, rtol: float = 1e-5, atol: float = 1e-8) -> tuple[float]:
     '''
     Evaluate the quantum circuit by computing the l-order distance between the 
@@ -155,53 +64,7 @@ def l_distance(circuit_builder: callable, desired: Statevector, qc: creator.Indi
     return np.linalg.norm(psi - desired, ord=order), 
 
 
-def cosine_similarity(circuit_builder: callable, desired: Statevector, qc: creator.Individual,
-                      ignorePhase: bool = True, rtol: float = 1e-5, atol: float = 1e-8) -> tuple[float]:
-    '''
-    Evaluate the quantum circuit by computing the cosine similarity between the 
-    desired output vector and the computed vector
-
-    Parameters
-    ----------
-    circuit_builder : callable
-        Function used to build the qiskit circuit
-    desired : Statevector
-        Desired output vector.
-    qc : QuantumCircuit
-        Quantum circuit built by the genetic algorithm.
-    ignorePhase : bool, optional
-        If true ignore global phase difference. The default is True.
-    rtol : TYPE, optional
-        Relative tollerance to use during computation. The default is 1e-5.
-    atol : TYPE, optional
-        Absolute tollerance to use during computation. The default is 1e-8.
-
-    Returns
-    -------
-    tuple[float]
-        Cosine similarity.
-
-    '''
-    psi = Statevector.from_label('0' * qc.num_qubits)
-    psi = psi.evolve(circuit_builder(qc))
-    desired = desired.copy()    
-    if ignorePhase:
-        # Get phase of first non-zero entry of psi and out
-        # and multiply all entries by the conjugate
-        for elt in psi:
-            if abs(elt) > atol:
-                angle = np.angle(elt)
-                psi = np.exp(-1j * angle) * psi
-                break
-        for elt in desired:
-            if abs(elt) > atol:
-                angle = np.angle(elt)
-                desired = np.exp(-1j * angle) * desired
-                break
-    return np.abs((psi - desired).inner(psi- desired)/(np.linalg.norm(psi) * np.linalg.norm(desired))), 
-
-
-def insert_mutation(qc: creator.Individual) -> tuple[creator.Individual]:
+def insert_mutation(qc: Individual) -> tuple[Individual]:
     '''
     Insert or append a random gate to the circuit
 
@@ -218,7 +81,7 @@ def insert_mutation(qc: creator.Individual) -> tuple[creator.Individual]:
         Mutated quantum circuit.
 
     '''
-    gate = random_gate(qc.num_qubits)
+    gate = utils.random_gate(qc.num_qubits)
     queue = list(range(len(qc) + 1))
     random.shuffle(queue)
     while queue:
@@ -241,18 +104,18 @@ def insert_mutation(qc: creator.Individual) -> tuple[creator.Individual]:
     raise ValueError('Could not append the selected gate')
 
 
-def delete_mutation(qc: creator.Individual) -> tuple[creator.Individual]:
+def delete_mutation(qc: Individual) -> tuple[Individual]:
     '''
     Delete a random gate from the circuit
 
     Parameters
     ----------
-    qc : creator.Individual
+    qc : Individual
         Quantum circuit to mutate.
 
     Returns
     -------
-    qc : tuple[creator.Individual]
+    qc : tuple[Individual]
         Mutated quantum circuit.
 
     '''
@@ -264,18 +127,18 @@ def delete_mutation(qc: creator.Individual) -> tuple[creator.Individual]:
     return qc,
 
 
-def gate_flip(qc: creator.Individual) -> tuple[creator.Individual]:
+def gate_flip(qc: Individual) -> tuple[Individual]:
     '''
     Replace a gate with a new random gate
 
     Parameters
     ----------
-    qc : creator.Individual
+    qc : Individual
         Quantum circuit to mutate.
 
     Returns
     -------
-    qc : tuple[creator.Individual]
+    qc : tuple[Individual]
         Mutated quantum circuit.
 
     '''
@@ -288,24 +151,24 @@ def gate_flip(qc: creator.Individual) -> tuple[creator.Individual]:
             for gate, used_qubits in qc[i]:
                 qubits = list(filter(lambda x: not x in used_qubits, qubits))
                             
-            gate = random_gate(len(qubits))
+            gate = utils.random_gate(len(qubits))
             qc[i].append((gate, random.sample(qubits, gate.num_qubits)))
             return qc,
     return qc,
 
 
-def swap_columns(qc: creator.Individual) -> tuple[creator.Individual]:
+def swap_columns(qc: Individual) -> tuple[Individual]:
     '''
     Swap two random columns
 
     Parameters
     ----------
-    qc : creator.Individual
+    qc : Individual
         Quantum circuit to mutate.
 
     Returns
     -------
-    qc : creator.Individual
+    qc : Individual
         Mutated quantum circuit.
 
     '''
@@ -314,18 +177,18 @@ def swap_columns(qc: creator.Individual) -> tuple[creator.Individual]:
     return qc,
 
 
-def swap_qubits(qc: creator.Individual) -> tuple[creator.Individual]:
+def swap_qubits(qc: Individual) -> tuple[Individual]:
     '''
     Swap two qubits lines
 
     Parameters
     ----------
-    qc : creator.Individual
+    qc : Individual
         Quantum circuit to mutate.
 
     Returns
     -------
-    qc : creator.Individual
+    qc : Individual
         Mutated quantum circuit.
 
     '''
@@ -345,8 +208,17 @@ def swap_qubits(qc: creator.Individual) -> tuple[creator.Individual]:
     return qc, 
 
 
-def mutate(qc: creator.Individual, inspb: float = 0.3, delpb: float = 0.5,
-           flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1) -> tuple[creator.Individual]:
+def debloat_mutation(qc: Individual) -> tuple[Individual]:
+    i = random.randrange(len(qc))
+    j = random.randrange(i, len(qc))
+    for _ in range(j-i):
+        del qc[i]
+    return qc,
+
+
+def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
+           flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1,
+           dblpb: float = 0.2) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -375,19 +247,21 @@ def mutate(qc: creator.Individual, inspb: float = 0.3, delpb: float = 0.5,
         swap_columns(qc)
     if random.random() < qbtpb:
         swap_qubits(qc)
+    if random.random() < dblpb:
+        debloat_mutation(qc)
     return qc,
 
 
 def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', init_ind, creator.Individual, random_gates, num_qubits=desired.num_qubits, max_depth=5)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=20)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=6)
-    toolbox.register("circuit_builder", build_from_list)
-    toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired, order=np.inf)
+    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("circuit_builder", Individual.build_circuit)
+    toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
     
     stats = tools.Statistics(key=lambda ind: ind.fitness.values)
     stats.register("avg", np.mean)
@@ -420,12 +294,12 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
     '''
     logbook = tools.Logbook()
-    best = init_ind(creator.Individual, random_gates, desired.num_qubits, max_depth)
-    best.fitness.values = l_distance(build_from_list, desired, best)
+    best = Individual.from_random_gates(desired.num_qubits, max_depth)
+    best.fitness.values = l_distance(Individual.build_circuit, desired, best)
     logbook.record(gen=0, fitness=best.fitness.values)
     for i in range(1, ngen+1):
-        current = init_ind(creator.Individual, random_gates, desired.num_qubits, max_depth)
-        current.fitness.values = l_distance(build_from_list, desired, current)
+        current = Individual.from_random_gates(desired.num_qubits, max_depth)
+        current.fitness.values = l_distance(Individual.build_circuit, desired, current)
         logbook.record(gen=i, fitness=current.fitness.values)
         if best == None or best.fitness.values < current.fitness.values:
             best = current
@@ -433,17 +307,19 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
 
 if __name__ == '__main__':
-    u = Statevector.from_label('0000' )
-    psi = Statevector(np.sqrt([1/4, 1/8, 0, 0, 1/2, 1/8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
+    num_qubits = 3
+    initial = Statevector.from_label('0' * num_qubits)
+    desired = Statevector(np.sqrt([1/3, 0, 0, 1/3, 1/6, 1/6, 0, 0]))
     
-    ngen = 30
-    best, genetic_logbook = genetic(psi, npop=200, ngen=ngen)
-    _, random_logbook = random_walk(psi, ngen)
+    ngen = 100
+    best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
+    _, random_logbook = random_walk(desired, ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
-    vis.compare_histograms(best, psi)
+    vis.compare_histograms(best, desired)
+    print('Evolved is equivalent to deisred:', desired.equiv(initial.evolve(best)))
     
     display(best.draw('mpl'))
-    display(u.evolve(best).draw('latex'))
+    display(initial.evolve(best).draw('latex'))
     
     

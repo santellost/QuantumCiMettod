@@ -1,6 +1,7 @@
 # If you need to install another package, write it here
 
 numpy
+scipy
 pandas
 matplotlib
 seaborn
