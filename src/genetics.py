@@ -87,7 +87,7 @@ def insert_mutation(qc: Individual) -> tuple[Individual]:
     while queue:
         index = queue.pop()
         qubits = list(range(qc.num_qubits))
-        if index == len(qc):
+        if index == len(qc):  # Adding gate at the end respect max_depth ??
             selected = random.sample(qubits, gate.num_qubits)
             qc.append([(gate, selected)])
             return qc,
