@@ -1,6 +1,6 @@
 # COSE DA FARE
-## Semplici
-1. Aggiungere i gate parametrici  
+## Task Semplici
+1. Aggiungere i gate parametrici (done)
     1. testare le performance a parametro fisso  
     2. mutare i parametri (dentro il loro dominio)  
 2. Rivedere la generazione della popolazione iniziale
