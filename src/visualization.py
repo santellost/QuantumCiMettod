@@ -54,7 +54,7 @@ def plot_logbook(logbook: tools.Logbook, **against: tools.Logbook):
     lns = line1 + line2 + lines
     labs = [l.get_label() for l in lns]
     ax1.legend(lns, labs, loc='center right')
-    
+    plt.show()
     
 def compare_histograms(qc: QuantumCircuit, desired: Statevector):
     '''
@@ -92,3 +92,5 @@ def compare_histograms(qc: QuantumCircuit, desired: Statevector):
         g.set_axis_labels("Base", "Frequencies")
         g.set_titles('{row_name}')
         g.set(ylim=(0,1))
+    
+    plt.show()

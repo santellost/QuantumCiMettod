@@ -254,7 +254,7 @@ def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
 
 def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=20)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=10)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     toolbox.register("mate", tools.cxOnePoint)
@@ -307,11 +307,11 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
 
 if __name__ == '__main__':
-    num_qubits = 3
+    num_qubits = 2
     initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector(np.sqrt([1/3, 0, 0, 1/3, 1/6, 1/6, 0, 0]))
+    desired = Statevector(np.sqrt([1/2, 0, 0, 1/2]))
     
-    ngen = 100
+    ngen = 60
     best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
     _, random_logbook = random_walk(desired, ngen)
     

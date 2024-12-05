@@ -14,7 +14,7 @@ from qiskit.circuit.singleton import SingletonGate, SingletonControlledGate
 
 NO_PARAMS = [g() for g in library.__dict__.values() if isinstance(g, type) and (issubclass(g, SingletonGate) or issubclass(g, SingletonControlledGate))]
 # TODO find a method to use parameter gates
-
+gates_map = library.get_standard_gate_name_mapping()
 
 def random_gate(max_qubits: int) -> Gate:
     '''
@@ -31,7 +31,10 @@ def random_gate(max_qubits: int) -> Gate:
         Random gate.
 
     '''
-    return random.choice(list(filter(lambda g: g.num_qubits <= max_qubits and g.name != 'id', NO_PARAMS)))
+    gate = random.choice(list(filter(lambda g: g.num_qubits <= max_qubits and g.name != 'id' and g.name != 'measure', gates_map.values()))).copy()
+    for index in range(len(gate.params)):
+        gate.params[index] = random.uniform(0, 2*np.pi)
+    return gate
 
 
 def get_complete_base(num_qubits: int):

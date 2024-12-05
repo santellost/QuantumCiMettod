@@ -44,11 +44,10 @@ class Individual(list):
 
         '''
         qc = []
-        for i in range(max_depth):
+        for i in range(max_depth):            
             layer = []
-            qubits = list(range(num_qubits))
-            random.shuffle(qubits)
-            while len(qubits) > 0 and random.random() < 0.5:
+            qubits = random.sample(range(num_qubits), random.randint(1, num_qubits))
+            while len(qubits) > 0:
                 gate = utils.random_gate(len(qubits))
                 selected = qubits[:gate.num_qubits]
                 layer.append((gate, selected))
