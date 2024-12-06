@@ -9,9 +9,11 @@ import random
 import numpy as np
 import scipy as sc
 from qiskit.circuit import library, Gate
-from qiskit.circuit.singleton import SingletonGate, SingletonControlledGate
+
 
 gates_map = library.get_standard_gate_name_mapping()
+gates_map = dict(filter(lambda gate: not gate[0] in ['id', 'measure', 'delay', 'reset'], gates_map.items()))
+
 
 def random_gate(max_qubits: int) -> Gate:
     '''
@@ -28,7 +30,7 @@ def random_gate(max_qubits: int) -> Gate:
         Random gate.
 
     '''
-    gate = random.choice(list(filter(lambda g: g.num_qubits <= max_qubits and g.name != 'id' and g.name != 'measure', gates_map.values()))).copy()
+    gate = random.choice(list(filter(lambda g: g.num_qubits <= max_qubits, gates_map.values()))).copy()
     for index in range(len(gate.params)):
         # Random fixed Parameters from the interval [0, 2*pi]
         gate.params[index] = random.uniform(0, 2*np.pi)
