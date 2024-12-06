@@ -8,7 +8,7 @@ Created on Tue Dec  3 12:03:29 2024
 import random
 import numpy as np
 import scipy as sc
-from qiskit.circuit import library, Gate
+from qiskit.circuit import library, Gate, Parameter
 
 
 gates_map = library.get_standard_gate_name_mapping()
@@ -31,6 +31,9 @@ def random_gate(max_qubits: int) -> Gate:
 
     '''
     gate = random.choice(list(filter(lambda g: g.num_qubits <= max_qubits, gates_map.values()))).copy()
+    # Special case for gates that don't have a fixed number of qubits e.g. GlobalPhaseGate 
+    if gate.num_qubits == 0:
+        gate.num_qubits = random.randint(1, max_qubits)
     for index in range(len(gate.params)):
         # Random fixed Parameters from the interval [0, 2*pi]
         gate.params[index] = random.uniform(0, 2*np.pi)
