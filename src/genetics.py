@@ -151,7 +151,7 @@ def gate_flip(qc: Individual) -> tuple[Individual]:
             for gate, used_qubits in qc[i]:
                 qubits = list(filter(lambda x: not x in used_qubits, qubits))
                             
-            gate = utils.random_gate(len(qubits))
+            gate = utils.random_gate(len(qubits))            
             qc[i].append((gate, random.sample(qubits, gate.num_qubits)))
             return qc,
     return qc,
@@ -247,14 +247,15 @@ def mutate_params(qc: Individual) -> tuple[Individual]:
     '''
     for i in random.sample(range(len(qc)), len(qc)):
         for j in random.sample(range(len(qc[i])), len(qc[i])):
-            k = random.choice(range(len(qc[i][j].params)))
-            qc[i][j].params[k] = random.uniform(0, 2*np.pi)
-            return qc,
+            if len(qc[i][j][0].params) > 0:
+                k = random.choice(range(len(qc[i][j][0].params)))
+                qc[i][j][0].params[k] = random.uniform(0, 2*np.pi)
+                return qc,
 
 
 def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
            flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1,
-           dblpb: float = 0.2) -> tuple[Individual]:
+           dblpb: float = 0.2, prmpb: float = 0.4) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -285,6 +286,8 @@ def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
         swap_qubits(qc)
     if random.random() < dblpb:
         debloat_mutation(qc)
+    if random.random() < prmpb:
+        mutate_params(qc)
     return qc,
 
 

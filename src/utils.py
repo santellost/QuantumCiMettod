@@ -12,7 +12,7 @@ from qiskit.circuit import library, Gate, Parameter
 
 
 gates_map = library.get_standard_gate_name_mapping()
-gates_map = dict(filter(lambda gate: not gate[0] in ['id', 'measure', 'delay', 'reset'], gates_map.items()))
+gates_map = dict(filter(lambda gate: not gate[0] in ['id', 'measure', 'delay', 'reset', 'global_phase'], gates_map.items()))
 
 
 def random_gate(max_qubits: int) -> Gate:
@@ -31,9 +31,6 @@ def random_gate(max_qubits: int) -> Gate:
 
     '''
     gate = random.choice(list(filter(lambda g: g.num_qubits <= max_qubits, gates_map.values()))).copy()
-    # Special case for gates that don't have a fixed number of qubits e.g. GlobalPhaseGate 
-    if gate.num_qubits == 0:
-        gate.num_qubits = random.randint(1, max_qubits)
     for index in range(len(gate.params)):
         # Random fixed Parameters from the interval [0, 2*pi]
         gate.params[index] = random.uniform(0, 2*np.pi)
