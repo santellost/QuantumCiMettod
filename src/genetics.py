@@ -209,11 +209,47 @@ def swap_qubits(qc: Individual) -> tuple[Individual]:
 
 
 def debloat_mutation(qc: Individual) -> tuple[Individual]:
-    i = random.randrange(len(qc))
+    '''
+    Removes a random number of layers
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
+    i = random.randrange(len(qc)-1)
     j = random.randrange(i, len(qc))
     for _ in range(j-i):
         del qc[i]
     return qc,
+
+
+def mutate_params(qc: Individual) -> tuple[Individual]:
+    '''
+    Mutate a random parameter of a random gate
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
+    for i in random.sample(range(len(qc)), len(qc)):
+        for j in random.sample(range(len(qc[i])), len(qc[i])):
+            k = random.choice(range(len(qc[i][j].params)))
+            qc[i][j].params[k] = random.uniform(0, 2*np.pi)
+            return qc,
 
 
 def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
