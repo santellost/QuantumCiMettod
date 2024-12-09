@@ -232,6 +232,20 @@ def delete_mutation(qc: Individual) -> tuple[Individual]:
 
 
 def debloat_mutation(qc: Individual) -> tuple[Individual]:
+    '''
+    Tries to delete a many layers to reduce bloating
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
     if len(qc) <= qc.min_depth:
         return qc,
     
