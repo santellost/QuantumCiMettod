@@ -296,7 +296,7 @@ def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
 
 def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.5, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=2, max_depth=40)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=2, max_depth=60)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     toolbox.register("mate", tools.cxOnePoint)
@@ -351,14 +351,15 @@ def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_de
 if __name__ == '__main__':
     num_qubits = 3
     initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector(np.sqrt([1/2, 0, 0, 1/2, 0, 0, 0, 0]))
+    desired = Statevector(np.sqrt([1/2, 0, 0, 1/4, 0, 1/8, 0, 1/8]))
     
-    ngen = 100
+    ngen = 200
     best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
     _, random_logbook = random_walk(desired, ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
-    vis.compare_histograms(best, desired)
+    if num_qubits < 7:
+        vis.compare_histograms(best, desired)
     print('Evolved is equivalent to deisred:', desired.equiv(initial.evolve(best)))
     
     display(best.draw('mpl'))
