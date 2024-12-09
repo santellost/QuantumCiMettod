@@ -8,7 +8,7 @@ Created on Tue Dec  3 12:03:29 2024
 import random
 import numpy as np
 import scipy as sc
-from qiskit.circuit import library, Gate, Parameter
+from qiskit.circuit import library, Gate
 
 
 gates_map = library.get_standard_gate_name_mapping()
