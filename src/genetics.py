@@ -145,7 +145,7 @@ def swap_qubits(qc: Individual) -> tuple[Individual]:
     return qc, 
 
 
-def mutate_params(qc: Individual) -> tuple[Individual]:
+def paramters_mutation(qc: Individual) -> tuple[Individual]:
     '''
     Mutate a random parameter of a random gate
 
@@ -290,7 +290,7 @@ def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
     if random.random() < delete:
         debloat_mutation(qc)
     if random.random() < params:
-        mutate_params(qc)
+        paramters_mutation(qc)
     return qc,
 
 
