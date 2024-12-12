@@ -5,6 +5,7 @@ Created on Tue Nov 26 13:56:45 2024
 @author: stefa
 """
 
+    
 import utils
 from individual import Individual
 
@@ -62,6 +63,7 @@ def l_distance(circuit_builder: callable, desired: Statevector, qc: Individual,
                 desired = np.exp(-1j * angle) * desired
                 break
     return np.linalg.norm(psi - desired, ord=order), 
+
 
 
 def insert_mutation(qc: Individual) -> tuple[Individual]:
@@ -216,7 +218,7 @@ def debloat_mutation(qc: Individual) -> tuple[Individual]:
     return qc,
 
 
-def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
+def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.5,
            flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1,
            dblpb: float = 0.2) -> tuple[Individual]:
     '''
@@ -252,14 +254,20 @@ def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
     return qc,
 
 
-def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
+def genetic(desired: Statevector, cxpb=0.9, mutpb=0.5):
+    #adaptive parameters
+    npop = 25*desired.num_qubits
+    ngen = 250*desired.num_qubits
+    max_depth = 3*desired.num_qubits
+    tourn_size = int(npop/20)
+    
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=10)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth = max_depth)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    toolbox.register("mate", tools.cxOnePoint)
+    toolbox.register("mate", tools.cxUniform, indpb=0.5) #toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("select", tools.selTournament, tournsize=tourn_size)
     toolbox.register("circuit_builder", Individual.build_circuit)
     toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
     
@@ -272,7 +280,7 @@ def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
     return toolbox.circuit_builder(best[0]), logbook
 
 
-def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tuple[QuantumCircuit, tools.Logbook]:
+def random_walk(desired: Statevector) -> tuple[QuantumCircuit, tools.Logbook]:
     '''
     Simplest evolutionary algorithm: generates a random quantum circuit each generation
 
@@ -293,6 +301,10 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
         Logbook with 'gen' and 'fitness' columns.
 
     '''
+    #adaptive parameters
+    ngen = 250*desired.num_qubits
+    max_depth = 4*desired.num_qubits
+    
     logbook = tools.Logbook()
     best = Individual.from_random_gates(desired.num_qubits, max_depth)
     best.fitness.values = l_distance(Individual.build_circuit, desired, best)
@@ -307,13 +319,14 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
 
 if __name__ == '__main__':
-    num_qubits = 2
+    num_qubits = 4
     initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector(np.sqrt([1/2, 0, 0, 1/2]))
+    desired = Statevector([ -0.139-0.117j, -0.03-0.437j, 0.155+0.311j,
+-0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
+-0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
     
-    ngen = 60
-    best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
-    _, random_logbook = random_walk(desired, ngen)
+    best, genetic_logbook = genetic(desired)
+    _, random_logbook = random_walk(desired)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
     vis.compare_histograms(best, desired)
@@ -321,5 +334,4 @@ if __name__ == '__main__':
     
     display(best.draw('mpl'))
     display(initial.evolve(best).draw('latex'))
-    
     

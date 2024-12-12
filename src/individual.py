@@ -25,6 +25,7 @@ class Individual(list):
         self.num_qubits = num_qubits
         self.max_depth = max_depth
         
+        
     
     def from_random_gates(num_qubits: int, max_depth: int):
         '''
