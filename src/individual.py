@@ -7,6 +7,7 @@ Created on Wed Dec  4 12:02:45 2024
 
 import utils
 import random
+import numpy.random
 from deap import creator, base
 from qiskit import QuantumCircuit
 
@@ -19,42 +20,46 @@ except Exception:
 creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 
 class Individual(list):
-    def __init__(self, num_qubits: int, max_depth: int, iterable: iter):
+    def __init__(self, num_qubits: int, min_depth: int, max_depth: int, iterable: iter):
         super().__init__(iterable)
         self.fitness = creator.FitnessMin()
         self.num_qubits = num_qubits
+        self.min_depth = min_depth
         self.max_depth = max_depth
-        
     
-    def from_random_gates(num_qubits: int, max_depth: int):
+    
+    def from_random_gates(num_qubits: int, min_depth: int, max_depth: int):
         '''
-        Creates a random circuit based on random gates
+        Generates a random circuit from random gates
 
         Parameters
         ----------
         num_qubits : int
-            Number of qubits.
+            Total number of qubits.
+        min_depth : int
+            Inclusive minimum depth of the circuit.
         max_depth : int
-            Max depth of the circuit.
+            Inclusive maximum depth of the circuit.
 
         Returns
         -------
-        qc : Individual
-            Random quantum circuit.
+        Individual
+            Quantum circuit as a list.
 
         '''
         qc = []
-        for _ in range(max_depth):            
+        depth = numpy.random.default_rng().geometric(0.01) % (max_depth + 1 - min_depth) + min_depth
+        for _ in range(depth):            
             layer = []
             # Random number of random qubits used as an input of the layer's gates
-            qubits = random.sample(range(num_qubits), random.randint(0, num_qubits))
+            qubits = random.sample(range(num_qubits), random.randint(1, num_qubits))
             while len(qubits) > 0:
                 gate = utils.random_gate(len(qubits))
                 selected = qubits[:gate.num_qubits]
                 layer.append((gate, selected))
                 qubits = qubits[gate.num_qubits:]
             qc.append(layer)
-        return Individual(num_qubits, max_depth, qc)
+        return Individual(num_qubits, min_depth, max_depth, qc)
     
     
     def build_circuit(self) -> QuantumCircuit:

@@ -64,69 +64,6 @@ def l_distance(circuit_builder: callable, desired: Statevector, qc: Individual,
     return np.linalg.norm(psi - desired, ord=order), 
 
 
-def insert_mutation(qc: Individual) -> tuple[Individual]:
-    '''
-    Insert or append a random gate to the circuit
-
-    Parameters
-    ----------
-    qc : creator.Individual
-        Quantum circuit to mutate.
-    inspb : float
-        Probability of the mutation to happen.
-
-    Returns
-    -------
-    qc : tuple[creator.Individual]
-        Mutated quantum circuit.
-
-    '''
-    gate = utils.random_gate(qc.num_qubits)
-    queue = list(range(len(qc) + 1))
-    random.shuffle(queue)
-    while queue:
-        index = queue.pop()
-        qubits = list(range(qc.num_qubits))
-        if index == len(qc):  # Adding gate at the end respect max_depth ??
-            selected = random.sample(qubits, gate.num_qubits)
-            qc.append([(gate, selected)])
-            return qc,
-        
-        for gate, used_qubits in qc[index]:
-            qubits = list(filter(lambda x: not x in used_qubits, qubits))
-        
-        if len(qubits) < gate.num_qubits:
-            continue
-        
-        selected = random.sample(qubits, gate.num_qubits)
-        qc[index].append((gate, selected))
-        return qc,
-    raise ValueError('Could not append the selected gate')
-
-
-def delete_mutation(qc: Individual) -> tuple[Individual]:
-    '''
-    Delete a random gate from the circuit
-
-    Parameters
-    ----------
-    qc : Individual
-        Quantum circuit to mutate.
-
-    Returns
-    -------
-    qc : tuple[Individual]
-        Mutated quantum circuit.
-
-    '''
-    for i in random.sample(range(len(qc)), len(qc)):
-        if len(qc[i]) > 0:
-            j = random.randrange(len(qc[i]))
-            del qc[i][j]
-            return qc,
-    return qc,
-
-
 def gate_flip(qc: Individual) -> tuple[Individual]:
     '''
     Replace a gate with a new random gate
@@ -151,15 +88,15 @@ def gate_flip(qc: Individual) -> tuple[Individual]:
             for gate, used_qubits in qc[i]:
                 qubits = list(filter(lambda x: not x in used_qubits, qubits))
                             
-            gate = utils.random_gate(len(qubits))
+            gate = utils.random_gate(len(qubits))            
             qc[i].append((gate, random.sample(qubits, gate.num_qubits)))
             return qc,
     return qc,
 
 
-def swap_columns(qc: Individual) -> tuple[Individual]:
+def swap_layers(qc: Individual) -> tuple[Individual]:
     '''
-    Swap two random columns
+    Swap two random layers
 
     Parameters
     ----------
@@ -208,17 +145,120 @@ def swap_qubits(qc: Individual) -> tuple[Individual]:
     return qc, 
 
 
-def debloat_mutation(qc: Individual) -> tuple[Individual]:
-    i = random.randrange(len(qc))
-    j = random.randrange(i, len(qc))
-    for _ in range(j-i):
+def paramters_mutation(qc: Individual) -> tuple[Individual]:
+    '''
+    Mutate a random parameter of a random gate
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
+    for i in random.sample(range(len(qc)), len(qc)):
+        for j in random.sample(range(len(qc[i])), len(qc[i])):
+            if len(qc[i][j][0].params) > 0:
+                k = random.choice(range(len(qc[i][j][0].params)))
+                qc[i][j][0].params[k] = random.uniform(0, 2*np.pi)
+                return qc,
+
+
+def insert_mutation(qc: Individual) -> tuple[Individual]:
+    '''
+    Tries to add a random gate in a random layer, if it can't and it's depth 
+    is less than max_depth create a new layer with the new gate
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
+    layers = random.sample(range(len(qc)), len(qc))
+    for i in layers:
+        qubits = list(range(qc.num_qubits))
+        for gate, used_qubits in qc[i]:
+            qubits = list(filter(lambda x: not x in used_qubits, qubits))
+        
+        if len(qubits) > 0:
+            gate = utils.random_gate(len(qubits))
+            qc[i].append((gate, random.sample(qubits, gate.num_qubits)))
+            return qc,
+    
+    # Tries to create a new layer
+    if len(qc) < qc.max_depth:
+        gate = utils.random_gate(qc.num_qubits)
+        qubits = random.sample(range(qc.num_qubits), gate.num_qubits)
+        qc.append([(gate, qubits)])
+    return qc,
+
+
+def delete_mutation(qc: Individual) -> tuple[Individual]:
+    '''
+    Tries to delete a single gate without leaving an empty layer
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
+    layers = random.sample(range(len(qc)), len(qc))
+    for i in layers:
+        if len(qc[i]) > 1:
+            del qc[i][random.randrange(len(qc[i]))]
+            return qc,
+    
+    # Tries to delete a layer
+    if len(qc) > qc.min_depth:
+        i = random.randrange(len(qc))
         del qc[i]
     return qc,
 
 
-def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
-           flppb: float = 0.4, colpb: float = 0.3, qbtpb: float = 0.1,
-           dblpb: float = 0.2) -> tuple[Individual]:
+def debloat_mutation(qc: Individual) -> tuple[Individual]:
+    '''
+    Tries to delete a many layers to reduce bloating
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
+    if len(qc) <= qc.min_depth:
+        return qc,
+    
+    i = random.randrange(qc.min_depth-1, len(qc)-1)
+    j = random.randrange(i+1, len(qc))
+    qc[i:] = qc[j:]
+    
+    return qc,
+
+
+def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
+           flip: float = 0.4, layers: float = 0.3, qubits: float = 0.1,
+           debolat: float = 0.2, params: float = 0.4) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -237,29 +277,31 @@ def mutate(qc: Individual, inspb: float = 0.3, delpb: float = 0.7,
 
     '''
     # TODO add other mutations
-    if random.random() < inspb:
+    if random.random() < insert:
         insert_mutation(qc)
-    if random.random() < delpb:
+    if random.random() < delete:
         delete_mutation(qc)
-    if random.random() < flppb:
+    if random.random() < flip:
         gate_flip(qc)
-    if random.random() < colpb:
-        swap_columns(qc)
-    if random.random() < qbtpb:
+    if random.random() < layers:
+        swap_layers(qc)
+    if random.random() < qubits:
         swap_qubits(qc)
-    if random.random() < dblpb:
+    if random.random() < delete:
         debloat_mutation(qc)
+    if random.random() < params:
+        paramters_mutation(qc)
     return qc,
 
 
-def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
+def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.5, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, max_depth=10)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=2, max_depth=60)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=3)
+    toolbox.register("select", tools.selTournament, tournsize=5)
     toolbox.register("circuit_builder", Individual.build_circuit)
     toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
     
@@ -272,7 +314,7 @@ def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.2, ngen=50):
     return toolbox.circuit_builder(best[0]), logbook
 
 
-def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tuple[QuantumCircuit, tools.Logbook]:
+def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_depth: int = 5) -> tuple[QuantumCircuit, tools.Logbook]:
     '''
     Simplest evolutionary algorithm: generates a random quantum circuit each generation
 
@@ -294,11 +336,11 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
     '''
     logbook = tools.Logbook()
-    best = Individual.from_random_gates(desired.num_qubits, max_depth)
+    best = Individual.from_random_gates(desired.num_qubits, min_depth, max_depth)
     best.fitness.values = l_distance(Individual.build_circuit, desired, best)
     logbook.record(gen=0, fitness=best.fitness.values)
     for i in range(1, ngen+1):
-        current = Individual.from_random_gates(desired.num_qubits, max_depth)
+        current = Individual.from_random_gates(desired.num_qubits, min_depth, max_depth)
         current.fitness.values = l_distance(Individual.build_circuit, desired, current)
         logbook.record(gen=i, fitness=current.fitness.values)
         if best == None or best.fitness.values < current.fitness.values:
@@ -307,16 +349,17 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
 
 if __name__ == '__main__':
-    num_qubits = 2
+    num_qubits = 3
     initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector(np.sqrt([1/2, 0, 0, 1/2]))
+    desired = Statevector(np.sqrt([1/2, 0, 0, 1/4, 0, 1/8, 0, 1/8]))
     
-    ngen = 60
+    ngen = 200
     best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
     _, random_logbook = random_walk(desired, ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
-    vis.compare_histograms(best, desired)
+    if num_qubits < 7:
+        vis.compare_histograms(best, desired)
     print('Evolved is equivalent to deisred:', desired.equiv(initial.evolve(best)))
     
     display(best.draw('mpl'))
