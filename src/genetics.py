@@ -87,13 +87,16 @@ def insert_mutation(qc: Individual) -> tuple[Individual]:
     while queue:
         index = queue.pop()
         qubits = list(range(qc.num_qubits))
-        if index == len(qc):  # Adding gate at the end respect max_depth ??
+        if index == len(qc):
+            if len(qc) == qc.max_depth:
+                continue
+            # Create new layer whith only one gate
             selected = random.sample(qubits, gate.num_qubits)
             qc.append([(gate, selected)])
             return qc,
         
         for gate, used_qubits in qc[index]:
-            qubits = list(filter(lambda x: not x in used_qubits, qubits))
+            qubits = list(filter(lambda x: not (x in used_qubits), qubits))
         
         if len(qubits) < gate.num_qubits:
             continue
@@ -209,6 +212,20 @@ def swap_qubits(qc: Individual) -> tuple[Individual]:
 
 
 def debloat_mutation(qc: Individual) -> tuple[Individual]:
+    '''
+    Remove a random number of layers 
+
+    Parameters
+    ----------
+    qc : Individual
+        Quantum circuit to mutate.
+
+    Returns
+    -------
+    qc : Individual
+        Mutated quantum circuit.
+
+    '''
     i = random.randrange(len(qc))
     j = random.randrange(i, len(qc))
     for _ in range(j-i):
@@ -307,11 +324,15 @@ def random_walk(desired: Statevector, ngen: int = 50, max_depth: int = 5) -> tup
 
 
 if __name__ == '__main__':
-    num_qubits = 2
+    num_qubits = 3
     initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector(np.sqrt([1/2, 0, 0, 1/2]))
+    #desired = Statevector(np.sqrt([1/2, 0, 0, 1/2, 2/3, 1/3]))
+    desired = Statevector([ 0.691311  +0.j        , -0.17339272-0.08946213j,
+                  0.03804192+0.16026252j, -0.03365685+0.04366744j,
+                 -0.0478685 -0.03692211j, -0.07188481+0.29868764j,
+                 -0.20095861+0.51597628j, -0.1460124 +0.16696653j])
     
-    ngen = 60
+    ngen = 100
     best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
     _, random_logbook = random_walk(desired, ngen)
     

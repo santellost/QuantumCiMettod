@@ -44,6 +44,7 @@ class Individual(list):
 
         '''
         qc = []
+        # depth = random.randint(1, max_depth)
         for _ in range(max_depth):            
             layer = []
             # Random number of random qubits used as an input of the layer's gates

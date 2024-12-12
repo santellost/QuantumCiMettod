@@ -9,7 +9,7 @@ import random
 import numpy as np
 import scipy as sc
 from qiskit.circuit import library, Gate
-from qiskit.circuit.singleton import SingletonGate, SingletonControlledGate
+from qiskit.quantum_info import Statevector
 
 gates_map = library.get_standard_gate_name_mapping()
 
@@ -114,3 +114,5 @@ def random_hermitian_unitary(n: int):
     A = random_unitary(n)
     B = np.diag([random.choice([1, -1]) for _ in range(n)])
     return A@B@A.conj().T
+
+print(Statevector.from_label('0'*3).evolve(random_hermitian_unitary(2**3)))
