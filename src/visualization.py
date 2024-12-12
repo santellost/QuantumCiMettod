@@ -50,6 +50,7 @@ def plot_logbook(logbook: tools.Logbook, **against: tools.Logbook):
         
     ax1.set_xlabel("Generation")
     ax1.set_ylabel("Fitness")
+    ax1.set_ylim(bottom=-0.1)
     
     lns = line1 + line2 + lines
     labs = [l.get_label() for l in lns]

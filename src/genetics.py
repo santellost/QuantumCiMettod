@@ -164,7 +164,11 @@ def paramters_mutation(qc: Individual) -> tuple[Individual]:
         for j in random.sample(range(len(qc[i])), len(qc[i])):
             if len(qc[i][j][0].params) > 0:
                 k = random.choice(range(len(qc[i][j][0].params)))
-                qc[i][j][0].params[k] = random.uniform(0, 2*np.pi)
+                try:
+                    std = qc.fitness.values[0]
+                except IndexError:
+                    std = 1
+                qc[i][j][0].params[k] = random.gauss(qc[i][j][0].params[k], std)
                 return qc,
 
 
@@ -256,9 +260,9 @@ def debloat_mutation(qc: Individual) -> tuple[Individual]:
     return qc,
 
 
-def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
-           flip: float = 0.4, layers: float = 0.3, qubits: float = 0.1,
-           debolat: float = 0.2, params: float = 0.4) -> tuple[Individual]:
+def mutate(qc: Individual, insert: float = 0.1, delete: float = 0.1,
+           flip: float = 0.1, layers: float = 0.05, qubits: float = 0.05,
+           debolat: float = 0.005, params: float = 0.05) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -294,14 +298,14 @@ def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
     return qc,
 
 
-def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.5, ngen=50):
+def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=1, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=2, max_depth=60)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=4, max_depth=30)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
     toolbox.register("mate", tools.cxOnePoint)
     toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=5)
+    toolbox.register("select", tools.selTournament, tournsize=6)
     toolbox.register("circuit_builder", Individual.build_circuit)
     toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
     
@@ -314,7 +318,7 @@ def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.5, ngen=50):
     return toolbox.circuit_builder(best[0]), logbook
 
 
-def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_depth: int = 5) -> tuple[QuantumCircuit, tools.Logbook]:
+def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_depth: int = 30) -> tuple[QuantumCircuit, tools.Logbook]:
     '''
     Simplest evolutionary algorithm: generates a random quantum circuit each generation
 
@@ -353,8 +357,8 @@ if __name__ == '__main__':
     initial = Statevector.from_label('0' * num_qubits)
     desired = Statevector(np.sqrt([1/2, 0, 0, 1/4, 0, 1/8, 0, 1/8]))
     
-    ngen = 200
-    best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
+    ngen = 300
+    best, genetic_logbook = genetic(desired, npop=150, ngen=ngen)
     _, random_logbook = random_walk(desired, ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
