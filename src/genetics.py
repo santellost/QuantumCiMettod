@@ -164,7 +164,11 @@ def paramters_mutation(qc: Individual) -> tuple[Individual]:
         for j in random.sample(range(len(qc[i])), len(qc[i])):
             if len(qc[i][j][0].params) > 0:
                 k = random.choice(range(len(qc[i][j][0].params)))
-                qc[i][j][0].params[k] = random.uniform(0, 2*np.pi)
+                try:
+                    std = qc.fitness.values[0]
+                except IndexError:
+                    std = 1
+                qc[i][j][0].params[k] = random.gauss(qc[i][j][0].params[k], std)
                 return qc,
 
 
@@ -256,9 +260,9 @@ def debloat_mutation(qc: Individual) -> tuple[Individual]:
     return qc,
 
 
-def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
-           flip: float = 0.4, layers: float = 0.3, qubits: float = 0.1,
-           debolat: float = 0.2, params: float = 0.4) -> tuple[Individual]:
+def mutate(qc: Individual, insert: float = 0.1, delete: float = 0.1,
+           flip: float = 0.1, layers: float = 0.1, qubits: float = 0.1,
+           debolat: float = 0.1, params: float = 0.1) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -293,15 +297,18 @@ def mutate(qc: Individual, insert: float = 0.3, delete: float = 0.7,
         paramters_mutation(qc)
     return qc,
 
+def genetic(desired: Statevector, ngen: int = 500, npop: int = 100,
+            min_depth: int = 2, max_depth: int = 15, cxpb: float = 1,
+            mutpb: float = 0.5, tourn_ratio: float = 0.05):
+    tourn_size = int(tourn_ratio*npop)
 
-def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.5, ngen=50):
     toolbox = base.Toolbox()
-    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=2, max_depth=60)
+    toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=min_depth, max_depth=max_depth)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    toolbox.register("mate", tools.cxOnePoint)
+    toolbox.register("mate", tools.cxUniform, indpb=0.5)
     toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=5)
+    toolbox.register("select", tools.selTournament, tournsize=tourn_size)
     toolbox.register("circuit_builder", Individual.build_circuit)
     toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
     
@@ -314,7 +321,7 @@ def genetic(desired: Statevector, npop=50, cxpb=0.75, mutpb=0.5, ngen=50):
     return toolbox.circuit_builder(best[0]), logbook
 
 
-def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_depth: int = 5) -> tuple[QuantumCircuit, tools.Logbook]:
+def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_depth: int = 40) -> tuple[QuantumCircuit, tools.Logbook]:
     '''
     Simplest evolutionary algorithm: generates a random quantum circuit each generation
 
@@ -349,18 +356,20 @@ def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_de
 
 
 if __name__ == '__main__':
-    num_qubits = 3
+    num_qubits = 4
     initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector(np.sqrt([1/2, 0, 0, 1/4, 0, 1/8, 0, 1/8]))
+    desired = Statevector([ -0.139-0.117j, -0.03-0.437j, 0.155+0.311j,
+                           -0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
+                           -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
     
-    ngen = 200
-    best, genetic_logbook = genetic(desired, npop=100, ngen=ngen)
-    _, random_logbook = random_walk(desired, ngen)
+    ngen = 500
+    best, genetic_logbook = genetic(desired, ngen=ngen)
+    _, random_logbook = random_walk(desired, ngen=ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
     if num_qubits < 7:
         vis.compare_histograms(best, desired)
-    print('Evolved is equivalent to deisred:', desired.equiv(initial.evolve(best)))
+    print('Evolved is equivalent to desired:', desired.equiv(initial.evolve(best)))
     
     display(best.draw('mpl'))
     display(initial.evolve(best).draw('latex'))
