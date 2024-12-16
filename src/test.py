@@ -8,7 +8,6 @@ Created on Fri Dec 13 16:58:30 2024
 from genetics import genetic, random_walk
 import visualization as vis
 
-import numpy as np
 from deap.tools import Logbook
 from qiskit.quantum_info import Statevector, random_statevector
 
@@ -33,11 +32,11 @@ def simple_test(state: Statevector):
 
 
 def iterate_test(state: Statevector, num_iters: int = 5, ngen: int = 100) -> Logbook:
-    random = {'Random': [random_walk(state, ngen)[1] for _ in range(num_iters)]}
     logbooks = []
     for i in range(num_iters):
         _, logbook = genetic(state, ngen)
         logbooks.append(logbook)
+    random = {'Random': [random_walk(state, ngen)[1] for _ in range(num_iters)]}
     vis.plot_logbook(*logbooks, **random)
     return logbooks
     
@@ -46,9 +45,9 @@ def test_fixed_qubits(*states: Statevector, num_iters: int = 5, ngen: int = 100,
     logbooks = []
     randoms = []
     for state in states:
-        randoms.extend([random_walk(state, ngen)[1] for _ in range(num_iters)])
         logbooks.extend(iterate_test(state, num_iters, ngen))
     if plot_final and len(states) > 1:
+        randoms.extend([random_walk(state, ngen)[1] for _ in range(num_iters*len(states))])
         vis.plot_logbook(*logbooks, **{'Random': randoms})
 
 
@@ -57,4 +56,4 @@ if __name__ == '__main__':
                            -0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
                            -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
     #simple_test(paper)
-    test_fixed_qubits(paper, num_iters=10, ngen=500)
+    test_fixed_qubits(paper, num_iters=5, ngen=500)

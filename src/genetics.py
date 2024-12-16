@@ -10,6 +10,7 @@ from individual import Individual
 
 import random
 import numpy as np
+import multiprocessing
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 from deap import base, tools, algorithms
@@ -297,7 +298,7 @@ def mutate(qc: Individual, insert: float = 0.1, delete: float = 0.1,
         paramters_mutation(qc)
     return qc,
 
-def genetic(desired: Statevector, ngen: int = 500, npop: int = 100,
+def genetic(desired: Statevector, ngen: int = 500, npop: int = 300,
             min_depth: int = 2, max_depth: int = 15, cxpb: float = 1,
             mutpb: float = 0.5, tourn_ratio: float = 0.05):
     tourn_size = int(tourn_ratio*npop)
@@ -306,18 +307,21 @@ def genetic(desired: Statevector, ngen: int = 500, npop: int = 100,
     toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=min_depth, max_depth=max_depth)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    toolbox.register("mate", tools.cxUniform, indpb=0.5)
-    toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=tourn_size)
-    toolbox.register("circuit_builder", Individual.build_circuit)
-    toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
-    
-    stats = tools.Statistics(key=lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean)
-    stats.register("min", np.min)
-    
-    best = tools.HallOfFame(1)
-    _, logbook = algorithms.eaSimple(toolbox.population(npop), toolbox, cxpb, mutpb, ngen, stats, best)
+    with multiprocessing.Pool() as pool:
+        toolbox.register("map", pool.map)
+        
+        toolbox.register("mate", tools.cxUniform, indpb=0.5)
+        toolbox.register("mutate", mutate)
+        toolbox.register("select", tools.selTournament, tournsize=tourn_size)
+        toolbox.register("circuit_builder", Individual.build_circuit)
+        toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
+        
+        stats = tools.Statistics(key=lambda ind: ind.fitness.values)
+        stats.register("avg", np.mean)
+        stats.register("min", np.min)
+        
+        best = tools.HallOfFame(1)
+        _, logbook = algorithms.eaSimple(toolbox.population(npop), toolbox, cxpb, mutpb, ngen, stats, best)
     return toolbox.circuit_builder(best[0]), logbook
 
 
