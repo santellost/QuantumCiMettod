@@ -7,6 +7,7 @@ Created on Tue Dec  3 09:58:34 2024
 
 import utils
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import seaborn as sns
 import pandas as pd
 from deap import tools
@@ -68,8 +69,8 @@ def plot_grid_search(data: pd.DataFrame):
     palette = sns.color_palette("crest", as_cmap=True)
     g = sns.relplot(data, x='Generations', y='Fitness', kind='line', aspect=1.3,
                     hue='Mutation probability', style='Crossing-over probability', 
-                    row='Max depth', col='Tournament ratio', 
-                    palette=palette, hue_norm=(0.0, 1.0))
+                    row='Max depth', col='Tournament ratio',
+                    palette=palette, hue_norm=LogNorm())
     plt.show()
     
     

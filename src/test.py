@@ -58,7 +58,7 @@ def test_fixed_qubits(*states: Statevector, num_iters: int = 5, plot_final: bool
         vis.plot_logbook(*logbooks, **{'Random': randoms})
 
 
-def grid_search(state: Statevector, **kwargs):
+def grid_search(state: Statevector, num_iters: int = 5, **kwargs):
     cxpbs = [0.75, 1]
     mutpbs = [0.01, 0.1, 0.3]
     depths = [15]
@@ -68,7 +68,7 @@ def grid_search(state: Statevector, **kwargs):
         for mutpb in mutpbs:
             for max_depth in depths:
                 for tourn_ratio in tourn_ratios:
-                    logbooks = iterate_test(state, 5, cxpb=cxpb, mutpb=mutpb, max_depth=max_depth, tourn_ratio=tourn_ratio, **kwargs)
+                    logbooks = [genetic(state, cxpb=cxpb, mutpb=mutpb, max_depth=max_depth, tourn_ratio=tourn_ratio, **kwargs)[1] for _ in range(num_iters)]
                     fitnesses = []
                     for i, logbook in enumerate(logbooks):
                         generations = zip(logbook.select('gen'), logbook.select('min'))
@@ -83,6 +83,7 @@ def grid_search(state: Statevector, **kwargs):
                         'Tournament ratio': [tourn_ratio] * len(fitnesses)
                         })
                     data = pd.concat([data, temp])
+    data.to_csv('data')
     vis.plot_grid_search(data)
                     
 
@@ -92,4 +93,4 @@ if __name__ == '__main__':
                            -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
     #simple_test(paper)
     #test_fixed_qubits(paper, num_iters=10, ngen=500)
-    grid_search(random_statevector(2**2), ngen=50)
+    grid_search(paper, ngen=500, num_iters=15)
