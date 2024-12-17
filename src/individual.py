@@ -48,7 +48,7 @@ class Individual(list):
 
         '''
         qc = []
-        depth = numpy.random.default_rng().geometric(0.1) % (max_depth + 1 - min_depth) + min_depth
+        depth = random.randints(min_depth, max_depth)
         for _ in range(depth):
             layer = []
             # Random number of random qubits used as an input of the layer's gates

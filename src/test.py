@@ -8,6 +8,7 @@ Created on Fri Dec 13 16:58:30 2024
 from genetics import genetic, random_walk
 import visualization as vis
 
+import pandas as pd
 from deap.tools import Logbook
 from qiskit.quantum_info import Statevector, random_statevector
 
@@ -31,29 +32,64 @@ def simple_test(state: Statevector):
     display(initial.evolve(best).draw('latex'))
 
 
-def iterate_test(state: Statevector, num_iters: int = 5, ngen: int = 100) -> Logbook:
+def iterate_test(state: Statevector, num_iters: int = 5, **kwargs) -> Logbook:
     logbooks = []
+    ngen = kwargs.pop('ngen', 500)
+    max_depth = kwargs.pop('max_depth', 15)
+    min_depth = kwargs.pop('min_depth', 2)
     for i in range(num_iters):
-        _, logbook = genetic(state, ngen)
+        _, logbook = genetic(state, ngen, min_depth=min_depth, max_depth=max_depth, **kwargs)
         logbooks.append(logbook)
-    random = {'Random': [random_walk(state, ngen)[1] for _ in range(num_iters)]}
+    random = {'Random': [random_walk(state, ngen, min_depth=min_depth, max_depth=max_depth)[1] for _ in range(num_iters)]}
     vis.plot_logbook(*logbooks, **random)
     return logbooks
     
     
-def test_fixed_qubits(*states: Statevector, num_iters: int = 5, ngen: int = 100, plot_final: bool = True):
+def test_fixed_qubits(*states: Statevector, num_iters: int = 5, plot_final: bool = True, **kwargs):
     logbooks = []
     randoms = []
+    ngen = kwargs.pop('ngen', 500)
+    max_depth = kwargs.pop('max_depth', 15)
+    min_depth = kwargs.pop('min_depth', 2)
     for state in states:
-        logbooks.extend(iterate_test(state, num_iters, ngen))
+        logbooks.extend(iterate_test(state, num_iters, ngen=ngen, min_depth=min_depth, max_depth=max_depth, **kwargs))
     if plot_final and len(states) > 1:
-        randoms.extend([random_walk(state, ngen)[1] for _ in range(num_iters*len(states))])
+        randoms.extend([random_walk(state, ngen, ngen=ngen, min_depth=min_depth, max_depth=max_depth, **kwargs)[1] for _ in range(num_iters*len(states))])
         vis.plot_logbook(*logbooks, **{'Random': randoms})
 
+
+def grid_search(state: Statevector, **kwargs):
+    cxpbs = [0.75, 1]
+    mutpbs = [0.01, 0.1, 0.3]
+    depths = [15]
+    tourn_ratios = [0.05]
+    data = pd.DataFrame()
+    for cxpb in cxpbs:
+        for mutpb in mutpbs:
+            for max_depth in depths:
+                for tourn_ratio in tourn_ratios:
+                    logbooks = iterate_test(state, 5, cxpb=cxpb, mutpb=mutpb, max_depth=max_depth, tourn_ratio=tourn_ratio, **kwargs)
+                    fitnesses = []
+                    for i, logbook in enumerate(logbooks):
+                        generations = zip(logbook.select('gen'), logbook.select('min'))
+                        fitnesses.extend([(i, gen, fitness) for gen, fitness in generations])
+                    temp = pd.DataFrame({
+                        'Generations': [gen for _, gen, _ in fitnesses],
+                        'Fitness': [fitness for _, _, fitness in fitnesses],
+                        'Iteration': [iteration for iteration, _, _ in fitnesses],
+                        'Crossing-over probability': [cxpb] * len(fitnesses),
+                        'Mutation probability': [mutpb] * len(fitnesses),
+                        'Max depth': [max_depth] * len(fitnesses),
+                        'Tournament ratio': [tourn_ratio] * len(fitnesses)
+                        })
+                    data = pd.concat([data, temp])
+    vis.plot_grid_search(data)
+                    
 
 if __name__ == '__main__':
     paper = Statevector([ -0.139-0.117j, -0.03-0.437j, 0.155+0.311j,
                            -0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
                            -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
     #simple_test(paper)
-    test_fixed_qubits(paper, num_iters=5, ngen=500)
+    #test_fixed_qubits(paper, num_iters=10, ngen=500)
+    grid_search(random_statevector(2**2), ngen=50)

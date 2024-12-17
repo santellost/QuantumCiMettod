@@ -64,6 +64,15 @@ def plot_logbook(*logbooks: tools.Logbook, **against: tools.Logbook | list[tools
     plot_fitness(data)
         
     
+def plot_grid_search(data: pd.DataFrame):
+    palette = sns.color_palette("crest", as_cmap=True)
+    g = sns.relplot(data, x='Generations', y='Fitness', kind='line', aspect=1.3,
+                    hue='Mutation probability', style='Crossing-over probability', 
+                    row='Max depth', col='Tournament ratio', 
+                    palette=palette, hue_norm=(0.0, 1.0))
+    plt.show()
+    
+    
 def compare_histograms(qc: QuantumCircuit, desired: Statevector):
     '''
     Plots both histograms obtained by the qunatum circuit and the desired statevector
