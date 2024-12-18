@@ -62,8 +62,8 @@ def test_fixed_qubits(*states: Statevector, num_iters: int = 5, plot_final: bool
 def grid_search(state: Statevector, num_iters: int = 5, **kwargs):
     cxpbs = [0.75, 1]
     mutpbs = [0.01, 0.1, 0.3, 0.5]
-    depths = [15]
-    tourn_ratios = [0.02, 0.1]
+    depths = [15, 20, 25]
+    tourn_ratios = [0.02, 0.05, 0.1]
     data = pd.DataFrame()
     for cxpb in cxpbs:
         for mutpb in mutpbs:
