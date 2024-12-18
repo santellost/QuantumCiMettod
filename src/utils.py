@@ -7,6 +7,7 @@ Created on Tue Dec  3 12:03:29 2024
 
 import random
 import numpy as np
+import pandas as pd
 from qiskit.circuit import library, Gate
 
 
@@ -52,3 +53,31 @@ def get_complete_base(num_qubits: int):
 
     '''
     return [format(x, f'0{num_qubits}b') for x in range(2**num_qubits)]
+
+
+def update_file(filename: str, data: pd.DataFrame) -> pd.DataFrame:
+    '''
+    Appends data to filename and returns the updated data in the file
+
+    Parameters
+    ----------
+    filename : str
+        Path to the file.
+    data : pd.DataFrame
+        If the files already exist, be sure that the headers are the same.
+
+    Returns
+    -------
+    data : pd.DataFrame
+        The complete data after the update.
+
+    '''
+    try:
+        with open(filename, 'x') as file:
+            data.to_csv(file, index=False)
+    except FileExistsError: 
+        with open(filename, 'a') as file:
+            data.to_csv(file, index=False, header=False)
+    with open(filename, 'r') as file:
+        data = pd.read_csv(file)
+    return data

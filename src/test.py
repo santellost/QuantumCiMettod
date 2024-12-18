@@ -7,6 +7,7 @@ Created on Fri Dec 13 16:58:30 2024
 
 from genetics import genetic, random_walk
 import visualization as vis
+import utils
 
 import pandas as pd
 from deap.tools import Logbook
@@ -60,9 +61,9 @@ def test_fixed_qubits(*states: Statevector, num_iters: int = 5, plot_final: bool
 
 def grid_search(state: Statevector, num_iters: int = 5, **kwargs):
     cxpbs = [0.75, 1]
-    mutpbs = [0.01, 0.1, 0.3]
+    mutpbs = [0.01, 0.1, 0.3, 0.5]
     depths = [15]
-    tourn_ratios = [0.05]
+    tourn_ratios = [0.02, 0.1]
     data = pd.DataFrame()
     for cxpb in cxpbs:
         for mutpb in mutpbs:
@@ -83,7 +84,7 @@ def grid_search(state: Statevector, num_iters: int = 5, **kwargs):
                         'Tournament ratio': [tourn_ratio] * len(fitnesses)
                         })
                     data = pd.concat([data, temp])
-    data.to_csv('data')
+    data = utils.update_file('data.csv', data)
     vis.plot_grid_search(data)
                     
 
