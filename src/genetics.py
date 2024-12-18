@@ -235,7 +235,7 @@ def delete_mutation(qc: Individual) -> tuple[Individual]:
     return qc,
 
 
-def debloat_mutation(qc: Individual) -> tuple[Individual]:
+def hoist_mutation(qc: Individual) -> tuple[Individual]:
     '''
     Tries to delete a many layers to reduce bloating
 
@@ -284,7 +284,7 @@ def mutate(qc: Individual, **weights: float) -> tuple[Individual]:
     weights.setdefault('flip', 2)
     weights.setdefault('layers', 1)
     weights.setdefault('qubits', 1)
-    weights.setdefault('debloat', 0.5)
+    weights.setdefault('hoist', 0.5)
     weights.setdefault('params', 2)
     
     key = random.choices(list(weights.keys()), list(weights.values()))[0]
@@ -299,8 +299,8 @@ def mutate(qc: Individual, **weights: float) -> tuple[Individual]:
             swap_layers(qc)
         case 'qubits':
             swap_qubits(qc)
-        case 'debloat':
-            debloat_mutation(qc)
+        case 'hoist':
+            hoist_mutation(qc)
         case 'params':
             paramters_mutation(qc)
     return qc,
@@ -318,7 +318,7 @@ def genetic(desired: Statevector, ngen: int = 500, npop: int = 100,
     with multiprocessing.Pool() as pool:
         toolbox.register("map", pool.map)
         
-        toolbox.register("mate", tools.cxOnePoint, indpb=0.5)
+        toolbox.register("mate", tools.cxOnePoint)
         toolbox.register("mutate", mutate)
         toolbox.register("select", tools.selTournament, tournsize=tourn_size)
         toolbox.register("circuit_builder", Individual.build_circuit)
