@@ -10,10 +10,10 @@ from individual import Individual
 
 import random
 import numpy as np
+import multiprocessing
 from qiskit import QuantumCircuit
 from qiskit.quantum_info import Statevector
 from deap import base, tools, algorithms
-import visualization as vis
 
 
 def l_distance(circuit_builder: callable, desired: Statevector, qc: Individual, 
@@ -260,9 +260,7 @@ def debloat_mutation(qc: Individual) -> tuple[Individual]:
     return qc,
 
 
-def mutate(qc: Individual, insert: float = 0.1, delete: float = 0.1,
-           flip: float = 0.1, layers: float = 0.1, qubits: float = 0.1,
-           debolat: float = 0.1, params: float = 0.1) -> tuple[Individual]:
+def mutate(qc: Individual, **weights: float) -> tuple[Individual]:
     '''
     Mutate the individual by:
         Inserting a new gate
@@ -276,52 +274,66 @@ def mutate(qc: Individual, insert: float = 0.1, delete: float = 0.1,
 
     Returns
     -------
+    
     tuple[creator.Individual]
         Mutated quantum circuit.
 
     '''
-    # TODO add other mutations
-    if random.random() < insert:
-        insert_mutation(qc)
-    if random.random() < delete:
-        delete_mutation(qc)
-    if random.random() < flip:
-        gate_flip(qc)
-    if random.random() < layers:
-        swap_layers(qc)
-    if random.random() < qubits:
-        swap_qubits(qc)
-    if random.random() < delete:
-        debloat_mutation(qc)
-    if random.random() < params:
-        paramters_mutation(qc)
+    weights.setdefault('insert', 1)
+    weights.setdefault('delete', 1)
+    weights.setdefault('flip', 2)
+    weights.setdefault('layers', 1)
+    weights.setdefault('qubits', 1)
+    weights.setdefault('debloat', 0.5)
+    weights.setdefault('params', 2)
+    
+    key = random.choices(list(weights.keys()), list(weights.values()))[0]
+    match key:
+        case 'insert':
+            insert_mutation(qc)
+        case 'delete':
+            delete_mutation(qc)
+        case 'flip':
+            gate_flip(qc)
+        case 'layers':
+            swap_layers(qc)
+        case 'qubits':
+            swap_qubits(qc)
+        case 'debloat':
+            debloat_mutation(qc)
+        case 'params':
+            paramters_mutation(qc)
     return qc,
 
+
 def genetic(desired: Statevector, ngen: int = 500, npop: int = 100,
-            min_depth: int = 2, max_depth: int = 15, cxpb: float = 1,
-            mutpb: float = 0.5, tourn_ratio: float = 0.05):
+            min_depth: int = 2, max_depth: int = 15, cxpb: float = 0.75,
+            mutpb: float = 0.3, tourn_ratio: float = 0.05):
     tourn_size = int(tourn_ratio*npop)
 
     toolbox = base.Toolbox()
     toolbox.register('individual', Individual.from_random_gates, num_qubits=desired.num_qubits, min_depth=min_depth, max_depth=max_depth)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
     
-    toolbox.register("mate", tools.cxUniform, indpb=0.5)
-    toolbox.register("mutate", mutate)
-    toolbox.register("select", tools.selTournament, tournsize=tourn_size)
-    toolbox.register("circuit_builder", Individual.build_circuit)
-    toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
-    
-    stats = tools.Statistics(key=lambda ind: ind.fitness.values)
-    stats.register("avg", np.mean)
-    stats.register("min", np.min)
-    
-    best = tools.HallOfFame(1)
-    _, logbook = algorithms.eaSimple(toolbox.population(npop), toolbox, cxpb, mutpb, ngen, stats, best)
+    with multiprocessing.Pool() as pool:
+        toolbox.register("map", pool.map)
+        
+        toolbox.register("mate", tools.cxUniform, indpb=0.5)
+        toolbox.register("mutate", mutate)
+        toolbox.register("select", tools.selTournament, tournsize=tourn_size)
+        toolbox.register("circuit_builder", Individual.build_circuit)
+        toolbox.register('evaluate', l_distance, toolbox.circuit_builder, desired)
+        
+        stats = tools.Statistics(key=lambda ind: ind.fitness.values)
+        stats.register("avg", np.mean)
+        stats.register("min", np.min)
+        
+        best = tools.HallOfFame(1)
+        _, logbook = algorithms.eaSimple(toolbox.population(npop), toolbox, cxpb, mutpb, ngen, stats, best)
     return toolbox.circuit_builder(best[0]), logbook
 
 
-def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_depth: int = 40) -> tuple[QuantumCircuit, tools.Logbook]:
+def random_walk(desired: Statevector, ngen: int = 500, min_depth: int = 2, max_depth: int = 15) -> tuple[QuantumCircuit, tools.Logbook]:
     '''
     Simplest evolutionary algorithm: generates a random quantum circuit each generation
 
@@ -345,33 +357,11 @@ def random_walk(desired: Statevector, ngen: int = 50, min_depth: int = 2, max_de
     logbook = tools.Logbook()
     best = Individual.from_random_gates(desired.num_qubits, min_depth, max_depth)
     best.fitness.values = l_distance(Individual.build_circuit, desired, best)
-    logbook.record(gen=0, fitness=best.fitness.values)
+    logbook.record(gen=0, fitness=best.fitness.values[0])
     for i in range(1, ngen+1):
         current = Individual.from_random_gates(desired.num_qubits, min_depth, max_depth)
         current.fitness.values = l_distance(Individual.build_circuit, desired, current)
-        logbook.record(gen=i, fitness=current.fitness.values)
+        logbook.record(gen=i, fitness=current.fitness.values[0])
         if best == None or best.fitness.values < current.fitness.values:
             best = current
     return best, logbook
-
-
-if __name__ == '__main__':
-    num_qubits = 4
-    initial = Statevector.from_label('0' * num_qubits)
-    desired = Statevector([ -0.139-0.117j, -0.03-0.437j, 0.155+0.311j,
-                           -0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
-                           -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
-    
-    ngen = 500
-    best, genetic_logbook = genetic(desired, ngen=ngen)
-    _, random_logbook = random_walk(desired, ngen=ngen)
-    
-    vis.plot_logbook(genetic_logbook, Random=random_logbook)
-    if num_qubits < 7:
-        vis.compare_histograms(best, desired)
-    print('Evolved is equivalent to desired:', desired.equiv(initial.evolve(best)))
-    
-    display(best.draw('mpl'))
-    display(initial.evolve(best).draw('latex'))
-    
-    

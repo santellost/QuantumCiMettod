@@ -7,6 +7,7 @@ Created on Tue Dec  3 09:58:34 2024
 
 import utils
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import seaborn as sns
 import pandas as pd
 from deap import tools
@@ -16,47 +17,62 @@ from qiskit.quantum_info import Statevector
 
 sns.set_theme()
 sns.set_style("whitegrid")
-
-
-def plot_logbook(logbook: tools.Logbook, **against: tools.Logbook):
-    '''
-    Plots the fitness inside the logbook againsts multiplt methods, usually a random walk
-
-    Parameters
-    ----------
-    logbook : tools.Logbook
-        Main logbook to plot.
-    **against : tools.Logbook
-        Additional logbooks to plot against the main.
-
-    Returns
-    -------
-    None.
-
-    '''
-    gen = logbook.select("gen")
-    fit_mins = logbook.select("min")
-    fit_avgs = logbook.select("avg")
-
-    fig, ax1 = plt.subplots(layout='tight', dpi=300)
-    line1 = ax1.plot(gen, fit_mins, "-", label="Minimum Fitness")
-    line2 = ax1.plot(gen, fit_avgs, "-", label="Average Fitness")
     
-    lines = []
-    for label, log in against.items():
-        a_gen = log.select('gen')
-        a_fit = log.select('fitness')
-        lines += ax1.plot(a_gen, a_fit, "-", label=label)
-        
-    ax1.set_xlabel("Generation")
-    ax1.set_ylabel("Fitness")
-    ax1.set_ylim(bottom=-0.1)
     
-    lns = line1 + line2 + lines
-    labs = [l.get_label() for l in lns]
-    ax1.legend(lns, labs, loc='center right')
-    
+def plot_fitness(data: pd.DataFrame):
+    g = sns.relplot(data=data, x='Generations', y='Fitness', hue='Legend', kind='line', aspect=1.3)
+    g.set(title=f'Fitness on {len(pd.unique(data["Iteration"]))} iterations')
     plt.show()
+
+    
+def plot_logbook(*logbooks: tools.Logbook, **against: tools.Logbook | list[tools.Logbook]):
+    data = pd.DataFrame()
+    for i, logbook in enumerate(logbooks):
+        gens = logbook.select('gen')
+        avgs = pd.DataFrame({
+            'Generations': gens, 
+            'Legend': ['Average'] * len(gens), 
+            'Iteration': i,
+            'Fitness': logbook.select('avg')
+            })
+        mins = pd.DataFrame({
+            'Generations': gens,
+            'Legend': ['Minimum'] * len(gens),
+            'Iteration': i,
+            'Fitness': logbook.select('min')
+            })
+        data = pd.concat([data, avgs, mins])
+    for label, logs in against.items():
+        if isinstance(logs, tools.Logbook):
+            gens = logs.select('gen')
+            temp = pd.DataFrame({
+                'Generations': gens,
+                'Legend': [label] * len(gens),
+                'Iteration': 0,
+                'Fitness': logs.select('fitness')
+                })
+            data = pd.concat([data, temp])
+        else:
+            for log in logs:
+                gens = log.select('gen')
+                temp = pd.DataFrame({
+                    'Generations': gens,
+                    'Legend': [label] * len(gens),
+                    'Iteration': 0,
+                    'Fitness': log.select('fitness')
+                    })
+                data = pd.concat([data, temp])
+    plot_fitness(data)
+        
+    
+def plot_grid_search(data: pd.DataFrame):
+    palette = sns.color_palette("crest", as_cmap=True)
+    g = sns.relplot(data, x='Generations', y='Fitness', kind='line', aspect=1.3,
+                    hue='Mutation probability', style='Crossing-over probability', 
+                    row='Max depth', col='Tournament ratio',
+                    palette=palette, hue_norm=LogNorm())
+    plt.show()
+    
     
 def compare_histograms(qc: QuantumCircuit, desired: Statevector):
     '''
