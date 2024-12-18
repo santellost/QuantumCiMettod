@@ -318,7 +318,7 @@ def genetic(desired: Statevector, ngen: int = 500, npop: int = 100,
     with multiprocessing.Pool() as pool:
         toolbox.register("map", pool.map)
         
-        toolbox.register("mate", tools.cxUniform, indpb=0.5)
+        toolbox.register("mate", tools.cxOnePoint, indpb=0.5)
         toolbox.register("mutate", mutate)
         toolbox.register("select", tools.selTournament, tournsize=tourn_size)
         toolbox.register("circuit_builder", Individual.build_circuit)
