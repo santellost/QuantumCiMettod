@@ -16,12 +16,11 @@ from qiskit.quantum_info import Statevector, random_statevector
 from IPython.display import display
 
 
-def simple_test(state: Statevector):
-    num_qubits = 4
+def simple_test(state: Statevector, ngen: int = 500, npop: int = 100):
+    num_qubits = state.num_qubits
     initial = Statevector.from_label('0' * num_qubits)
-    
-    ngen = 300
-    best, genetic_logbook = genetic(state, ngen=ngen)
+
+    best, genetic_logbook = genetic(state, ngen=ngen, npop=npop)
     _, random_logbook = random_walk(state, ngen=ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
@@ -60,31 +59,28 @@ def test_fixed_qubits(*states: Statevector, num_iters: int = 5, plot_final: bool
 
 
 def grid_search(state: Statevector, num_iters: int = 5, **kwargs):
-    cxpbs = [0.75, 1]
-    mutpbs = [0.01, 0.1, 0.3, 0.5]
-    depths = [15, 20, 25]
-    tourn_ratios = [0.02, 0.05, 0.1]
-    data = pd.DataFrame()
+    filename = '4q.csv'
+    cxpbs = [0.8, 1]
+    mutpbs = [0.01, 0.1, 0.5]
+    tourn_ratios = [0.03, 0.06, 0.1]
     for cxpb in cxpbs:
         for mutpb in mutpbs:
-            for max_depth in depths:
-                for tourn_ratio in tourn_ratios:
-                    logbooks = [genetic(state, cxpb=cxpb, mutpb=mutpb, max_depth=max_depth, tourn_ratio=tourn_ratio, **kwargs)[1] for _ in range(num_iters)]
-                    fitnesses = []
-                    for i, logbook in enumerate(logbooks):
-                        generations = zip(logbook.select('gen'), logbook.select('min'))
-                        fitnesses.extend([(i, gen, fitness) for gen, fitness in generations])
-                    temp = pd.DataFrame({
-                        'Generations': [gen for _, gen, _ in fitnesses],
-                        'Fitness': [fitness for _, _, fitness in fitnesses],
-                        'Iteration': [iteration for iteration, _, _ in fitnesses],
-                        'Crossing-over probability': [cxpb] * len(fitnesses),
-                        'Mutation probability': [mutpb] * len(fitnesses),
-                        'Max depth': [max_depth] * len(fitnesses),
-                        'Tournament ratio': [tourn_ratio] * len(fitnesses)
-                        })
-                    data = pd.concat([data, temp])
-    data = utils.update_file('data.csv', data)
+            for tourn_ratio in tourn_ratios:
+                logbooks = [genetic(state, cxpb=cxpb, mutpb=mutpb, tourn_ratio=tourn_ratio, **kwargs)[1] for _ in range(num_iters)]
+                fitnesses = []
+                for i, logbook in enumerate(logbooks):
+                    generations = zip(logbook.select('gen'), logbook.select('min'))
+                    fitnesses.extend([(i, gen, fitness) for gen, fitness in generations])
+                temp = pd.DataFrame({
+                    'Generations': [gen for _, gen, _ in fitnesses],
+                    'Fitness': [fitness for _, _, fitness in fitnesses],
+                    'Iteration': [iteration for iteration, _, _ in fitnesses],
+                    'Crossing-over probability': [cxpb] * len(fitnesses),
+                    'Mutation probability': [mutpb] * len(fitnesses),
+                    'Tournament ratio': [tourn_ratio] * len(fitnesses)
+                    })
+                utils.update_file(filename, temp)
+    data = pd.read_csv(filename)
     vis.plot_grid_search(data)
                     
 
@@ -92,6 +88,4 @@ if __name__ == '__main__':
     paper = Statevector([ -0.139-0.117j, -0.03-0.437j, 0.155+0.311j,
                            -0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
                            -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
-    #simple_test(paper)
-    #test_fixed_qubits(paper, num_iters=10, ngen=500)
-    grid_search(paper, ngen=500, num_iters=15)
+    simple_test(paper)

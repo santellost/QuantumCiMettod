@@ -63,13 +63,13 @@ def plot_logbook(*logbooks: tools.Logbook, **against: tools.Logbook | list[tools
                     })
                 data = pd.concat([data, temp])
     plot_fitness(data)
-        
-    
+
+
 def plot_grid_search(data: pd.DataFrame):
     palette = sns.color_palette("crest", as_cmap=True)
-    g = sns.relplot(data, x='Generations', y='Fitness', kind='line', aspect=1.3,
-                    hue='Mutation probability', style='Crossing-over probability', 
-                    row='Max depth', col='Tournament ratio',
+    g = sns.relplot(data, x='Generations', y='Fitness', kind='line',
+                    hue='Mutation probability', row='Tournament ratio', 
+                    col='Crossing-over probability', aspect=1.5, 
                     palette=palette, hue_norm=LogNorm())
     plt.show()
     
