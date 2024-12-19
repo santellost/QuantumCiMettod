@@ -16,11 +16,11 @@ from qiskit.quantum_info import Statevector, random_statevector
 from IPython.display import display
 
 
-def simple_test(state: Statevector, ngen: int = 500):
+def simple_test(state: Statevector, ngen: int = 500, npop: int = 100):
     num_qubits = state.num_qubits
     initial = Statevector.from_label('0' * num_qubits)
 
-    best, genetic_logbook = genetic(state, ngen=ngen)
+    best, genetic_logbook = genetic(state, ngen=ngen, npop=npop)
     _, random_logbook = random_walk(state, ngen=ngen)
     
     vis.plot_logbook(genetic_logbook, Random=random_logbook)
@@ -89,5 +89,3 @@ if __name__ == '__main__':
                            -0.341+0.404j, 0+0j, 0+0j, -0.057+0.012j, 0.011-0.021j, 0.09-0.107j, 0.335-0.023, -0.239+0.119j,
                            -0.31-0.262j, 0+0j, 0+0j, 0.027+0.007j, 0.007+0.027j])
     simple_test(paper)
-    #test_fixed_qubits(paper, num_iters=10, ngen=500)
-    #grid_search(paper, ngen=500, num_iters=10)
